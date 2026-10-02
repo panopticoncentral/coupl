@@ -1,0 +1,3 @@
+// A model-free smoke test: create one small image and preview it.
+image = EmptyImage(64, 64, batch_size = 1, color = 3368601)
+preview = PreviewImage(image.IMAGE)

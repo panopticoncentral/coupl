@@ -13,3 +13,9 @@ Thumbs.db
 # Logs and temporary files
 *.log
 *.tmp
+
+# TypeScript / Node.js build artifacts
+node_modules/
+dist/
+coverage/
+*.vsix

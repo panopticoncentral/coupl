@@ -1,0 +1,29 @@
+// A complete text-to-image graph for the first compiler implementation.
+// Replace example.safetensors with a checkpoint on the target instance.
+checkpoint = CheckpointLoaderSimple("example.safetensors")
+
+positive = CLIPTextEncode(
+  "A small observatory above a sea of clouds, morning light",
+  checkpoint.CLIP,
+)
+
+negative = CLIPTextEncode("blurry, watermark", clip = checkpoint.CLIP)
+
+latent = EmptyLatentImage(width = 512, height = 512, batch_size = 1)
+
+sample = KSampler(
+  model = checkpoint.MODEL,
+  positive = positive.CONDITIONING,
+  negative = negative.CONDITIONING,
+  latent_image = latent.LATENT,
+  seed = 42,
+  steps = 20,
+  cfg = 7,
+  sampler_name = "euler",
+  scheduler = "normal",
+  denoise = 1,
+)
+
+decoded = VAEDecode(samples = sample.LATENT, vae = checkpoint.VAE)
+
+save = SaveImage(images = decoded.IMAGE, filename_prefix = "Coupl")

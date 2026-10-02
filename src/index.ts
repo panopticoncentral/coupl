@@ -1,0 +1,11 @@
+export { compile } from "./compiler.js";
+export { parse, parseForEditor } from "./parser.js";
+export { formatDiagnostic } from "./diagnostics.js";
+export { fetchNodeCatalog } from "./client.js";
+export type { CatalogOptions } from "./client.js";
+export type { ApiGraph, ApiValue, CompileResult, Diagnostic, Position, Span } from "./types.js";
+export type { Token, TokenKind } from "./parser.js";
+export { readNodeSchema, selectInputs } from "./catalog.js";
+export type { InputSchema, NodeSchema } from "./catalog.js";
+export { bindInputs } from "./binding.js";
+export type { Declaration, NodeDeclaration, Reference, Argument, Value, Primitive } from "./types.js";

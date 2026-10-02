@@ -1,0 +1,172 @@
+// Faithful COUPL transcription of Text to Image (Krea-2 Turbo).json.
+// Preserves all 20 nodes, inputs, links, and literal values; node IDs become names.
+// UI titles are retained below as comments. Single-output nodes need no selector.
+// TextGenerate uses .generated_text to work with both one- and two-output versions.
+// Compiles against the source-derived test catalog; live compilation/execution unverified.
+// The source has no image output node; an optional addition is shown at the end.
+
+// Controls: the original user prompt is empty; LoRA is off and refinement is on.
+// 71:63: Text String (User Prompt)
+user_prompt = """"""
+
+// 71:67: Boolean (Enable LoRA?)
+enable_lora = false
+
+// 71:68: Boolean (Refine Prompt?)
+refine_prompt = true
+
+// Model files from the original workflow.
+// 71:55: Load Diffusion Model
+base_model = UNETLoader(
+  unet_name = "krea2_turbo_fp8_scaled.safetensors",
+  weight_dtype = "default",
+)
+
+// 71:56: Load CLIP
+clip = CLIPLoader(
+  clip_name = "qwen3vl_4b_fp8_scaled.safetensors",
+  type = "krea2",
+  device = "default",
+)
+
+// 71:57: Load VAE
+vae = VAELoader(
+  vae_name = "qwen_image_vae.safetensors",
+)
+
+// Optional model-only LoRA.
+// 71:59: Load LoRA
+lora_model = LoraLoaderModelOnly(
+  lora_name = "krea2_darkbrush.safetensors",
+  strength_model = 0.8,
+  model = base_model,
+)
+
+// 71:66: Switch (Model)
+model = ComfySwitchNode(
+  switch = enable_lora,
+  on_false = base_model,
+  on_true = lora_model,
+)
+
+// Prompt refinement. Triple-quoted strings preserve their contents exactly.
+// 71:62: Text String (System Prompt)
+system_prompt = """You are an expert prompt engineer for text-to-image models. Your task is to expand the user's prompt into a highly effective image-generation prompt.
+
+Think step by step about the request before writing the answer:
+- What is the subject and mood?
+- What visual styles, mediums, and lighting options would fit? Consider two or three alternatives and pick the one that best serves the caption.
+- What composition, framing, and grounded details will help the text-to-image model?
+
+Then output a single expanded prompt paragraph.
+
+Follow these rules strictly:
+1. **Faithfulness First:** Preserve all original subjects, actions, colors, and spatial relationships. Do not add new objects, props, characters, or animals unless the user clearly implies them.
+2. **Practical T2I Structure:** Write a prompt that a text-to-image model can parse cleanly. Group subjects with their own attributes and actions. Use grounded phrasing for poses, interactions, and spatial layout.
+3. **Style Planning Stays Internal:** Use your internal reasoning to choose style, medium, framing, and lighting. Do not emit planning tags or wrappers in the visible answer body.
+4. **Text Rendering:** If the user requests visible text, quotes, labels, or typography, specify the exact text clearly and wrap requested words in quotes.
+5. **Avoid Over-Specification:** Do not invent highly specific clothing, colors, materials, or scene details unless the input supports them.
+6. **Structure:** Write one cohesive paragraph after the thinking block. No bullets, JSON, or markdown.
+7. **Respect Existing Detail:** If the user's prompt is already detailed, lightly polish and finalize rather than heavily expanding — preserve their phrasing and direction.
+8. **Respect the Human Form:** Treat depictions of people with dignity. Assume clothing covers genitals and intimate anatomy.
+9. **Preserve User Medium:** When the user explicitly requests a medium (e.g. "photo of", "photograph of", "illustration of", "painting of", "sketch of", "3D render of"), honor it. Do not pivot to a different medium to avoid difficulty — match the user's stated intent.
+
+User's Input:
+
+"""
+
+// 71:61: Concatenate Text
+refinement_input = StringConcatenate(
+  string_a = system_prompt,
+  string_b = user_prompt,
+  delimiter = "",
+)
+
+// 71:60: Generate Text
+refined_prompt = TextGenerate(
+  prompt = refinement_input,
+  max_length = 512,
+  sampling_mode = {
+    sampling_mode = "on",
+    temperature = 0.7,
+    top_k = 64,
+    top_p = 0.95,
+    min_p = 0.05,
+    repetition_penalty = 1.05,
+    seed = 0,
+    presence_penalty = 0,
+  },
+  thinking = false,
+  use_default_template = true,
+  mtp = "auto",
+  clip = clip,
+)
+
+// Select the prompt, preview it as text, then optionally append the LoRA trigger.
+// 71:65: If/Else Switch
+selected_prompt = ComfySwitchNode(
+  switch = refine_prompt,
+  on_false = user_prompt,
+  on_true = refined_prompt.generated_text,
+)
+
+// 71:64: Preview as Text
+prompt_preview = PreviewAny(
+  source = selected_prompt,
+)
+
+// 71:69: Concatenate Text (LoRA Trigger Word)
+lora_prompt = StringConcatenate(
+  string_a = prompt_preview,
+  string_b = "muted minimalist sketch style",
+  delimiter = ", ",
+)
+
+// 71:70: If/Else Switch
+final_prompt = ComfySwitchNode(
+  switch = enable_lora,
+  on_false = prompt_preview,
+  on_true = lora_prompt,
+)
+
+// Encode, sample, and decode.
+// 71:51: CLIP Text Encode (Prompt)
+positive = CLIPTextEncode(
+  text = final_prompt,
+  clip = clip,
+)
+
+// 71:58: Conditioning Zero Out
+negative = ConditioningZeroOut(
+  conditioning = positive,
+)
+
+// 71:52: Empty Latent Image
+latent = EmptyLatentImage(
+  width = 1024,
+  height = 1024,
+  batch_size = 1,
+)
+
+// 71:53: KSampler
+sample = KSampler(
+  seed = 735915477938686,
+  steps = 8,
+  cfg = 1,
+  sampler_name = "euler",
+  scheduler = "simple",
+  denoise = 1,
+  model = model,
+  positive = positive,
+  negative = negative,
+  latent_image = latent,
+)
+
+// 71:54: VAE Decode
+decoded = VAEDecode(
+  samples = sample,
+  vae = vae,
+)
+
+// Optional addition, absent from the original JSON: uncomment to save an image.
+// save = SaveImage(images = decoded, filename_prefix = "Krea-2-Turbo")

@@ -1,0 +1,30 @@
+{
+  "name": "coupl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A DSL compiler for ComfyUI API graphs",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "coupl": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "start": "node dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3"
+  }
+}
