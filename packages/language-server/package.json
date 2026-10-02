@@ -1,0 +1,21 @@
+{
+  "name": "@coupl/language-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Language Server Protocol support for Coupl",
+  "license": "MIT",
+  "bin": {
+    "coupl-language-server": "./dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "coupl": "file:../..",
+    "vscode-languageserver": "10.1.2",
+    "vscode-languageserver-textdocument": "1.0.12",
+    "vscode-uri": "3.1.0"
+  }
+}

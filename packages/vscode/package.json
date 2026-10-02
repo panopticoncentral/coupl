@@ -1,0 +1,98 @@
+{
+  "name": "coupl-vscode",
+  "displayName": "Coupl",
+  "description": "Language support for Coupl ComfyUI workflows",
+  "version": "0.1.0",
+  "publisher": "panopticoncentral",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/panopticoncentral/coupl.git",
+    "directory": "packages/vscode"
+  },
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onLanguage:coupl"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Local language features are available. Catalog files and ComfyUI connections require a trusted workspace."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "coupl",
+        "aliases": [
+          "Coupl",
+          "coupl"
+        ],
+        "extensions": [
+          ".coupl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "coupl",
+        "scopeName": "source.coupl",
+        "path": "./syntaxes/coupl.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "coupl.refreshCatalog",
+        "title": "Coupl: Refresh Node Catalog"
+      },
+      {
+        "command": "coupl.setToken",
+        "title": "Coupl: Set ComfyUI Bearer Token"
+      },
+      {
+        "command": "coupl.clearToken",
+        "title": "Coupl: Clear ComfyUI Bearer Token"
+      }
+    ],
+    "configuration": {
+      "title": "Coupl",
+      "properties": {
+        "coupl.serverUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "ComfyUI base URL used to fetch /object_info. Leave empty to use a saved catalog only."
+        },
+        "coupl.catalogPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Path to saved /object_info JSON, absolute or relative to the workspace folder. Used when no server is configured or as an offline fallback."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies --out ../../dist/coupl-vscode.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.2"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.101.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2"
+  }
+}
