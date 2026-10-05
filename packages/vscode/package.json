@@ -61,6 +61,16 @@
       {
         "command": "coupl.clearToken",
         "title": "Coupl: Clear ComfyUI Bearer Token"
+      },
+      {
+        "command": "coupl.run",
+        "title": "Coupl: Run Workflow",
+        "icon": "$(play)"
+      },
+      {
+        "command": "coupl.stopMonitoring",
+        "title": "Coupl: Stop Monitoring",
+        "icon": "$(debug-stop)"
       }
     ],
     "configuration": {
@@ -70,15 +80,37 @@
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "ComfyUI base URL used to fetch /object_info. Leave empty to use a saved catalog only."
+          "description": "ComfyUI base URL for the node catalog and workflow execution. Leave empty to use a saved catalog for editing only."
         },
         "coupl.catalogPath": {
           "type": "string",
           "default": "",
           "scope": "resource",
           "description": "Path to saved /object_info JSON, absolute or relative to the workspace folder. Used when no server is configured or as an offline fallback."
+        },
+        "coupl.runTimeoutSeconds": {
+          "type": "number",
+          "default": 3600,
+          "minimum": 1,
+          "maximum": 86400,
+          "scope": "resource",
+          "description": "How long to monitor a run, including queue time. Stopping monitoring does not cancel server work."
         }
       }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "coupl.run",
+          "when": "editorLangId == coupl && isWorkspaceTrusted && !coupl.running",
+          "group": "navigation"
+        },
+        {
+          "command": "coupl.stopMonitoring",
+          "when": "editorLangId == coupl && coupl.running",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {
@@ -88,7 +120,8 @@
     "package": "vsce package --no-dependencies --out ../../dist/coupl-vscode.vsix"
   },
   "dependencies": {
-    "vscode-languageclient": "10.1.2"
+    "vscode-languageclient": "10.1.2",
+    "coupl": "file:../.."
   },
   "devDependencies": {
     "@types/vscode": "1.101.0",

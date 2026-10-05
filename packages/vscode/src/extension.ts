@@ -3,6 +3,8 @@ import * as path from "node:path";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
 import type { LanguageClientOptions, ServerOptions } from "vscode-languageclient/node";
 
+import { registerExecution } from "./execution.js";
+
 let client: LanguageClient | undefined;
 
 function tokenKey(serverUrl: string): string {
@@ -14,6 +16,7 @@ function tokenKey(serverUrl: string): string {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  registerExecution(context, async server => context.secrets.get(tokenKey(server)));
   const serverModule = context.asAbsolutePath(path.join("dist", "server.cjs"));
   const serverOptions: ServerOptions = { run: { module: serverModule, transport: TransportKind.ipc }, debug: { module: serverModule, transport: TransportKind.ipc } };
   const clientOptions: LanguageClientOptions = {

@@ -23,7 +23,7 @@ Set **Coupl: Server Url** in workspace settings to the ComfyUI base URL, for exa
 }
 ```
 
-The extension reads `/object_info` and checks source locally. It does not submit workflows or send source text to ComfyUI. Custom node classes and model choices follow the configured instance.
+While editing, the extension reads `/object_info` and checks source locally. Explicitly running a workflow submits its compiled API graph to ComfyUI; the Coupl source itself is not sent. Custom node classes and model choices follow the configured instance.
 
 Alternatively, set **Coupl: Catalog Path** to a saved `/object_info` response:
 
@@ -38,6 +38,18 @@ Paths may be absolute or relative to the document's workspace folder. If both se
 Catalogs are cached in memory, not fetched on every edit. Run **Coupl: Refresh Node Catalog** after installing nodes or models, changing a saved catalog, or recovering connectivity. A failed refresh retains the last successful catalog and displays a status in Problems. The cache lasts until the language server restarts; use a saved catalog for offline use across restarts. Without a catalog, syntax checking and local definitions remain available.
 
 For authentication, run **Coupl: Set ComfyUI Bearer Token** with a document from the intended workspace active. The token is stored in VS Code secret storage for that server URL. Use **Coupl: Clear ComfyUI Bearer Token** to remove it. URLs cannot contain embedded credentials, query parameters, or fragments. Catalog reads require a trusted workspace.
+
+## Run workflows
+
+Set `coupl.serverUrl`, open a `.coupl` file, and choose **Coupl: Run Workflow** or click the play button in the editor title. A trusted workspace is required. The command compiles a snapshot of the current buffer, including unsaved edits, against a freshly fetched server catalog. A saved catalog alone is sufficient for editing, but execution requires the live server. No ComfyUI plugin is needed.
+
+The notification shows queue/node/step progress. **Coupl Runs** in the Output panel records the prompt ID and connection or execution messages. On completion, **Coupl Results** displays downloaded PNG/JPEG/WebP/GIF files, raw node outputs (including text), and Open/Save As buttons. Other file types can be opened or saved. Results are cached under the extension's workspace storage (global storage if no workspace is open); closing the panel does not remove that cache. Result panels disable remote resources and escape node-provided text.
+
+Server validation/runtime errors appear in Problems. If the source changed during execution, a read-only snapshot of the submitted source opens at the failed declaration so the error is not attached to a different version of the code. Each VS Code window monitors one Coupl run at a time.
+
+**Coupl: Stop Monitoring** stops the local wait or downloads; it does **not** interrupt server execution. The default monitoring deadline is 3600 seconds, adjustable with `coupl.runTimeoutSeconds`. Closing VS Code likewise does not stop the server. The prompt ID in the log can be used to find the result in ComfyUI. HTTP history polling continues if WebSocket progress drops; temporary history failures get up to three attempts. An ambiguous submission is never automatically resubmitted.
+
+Bearer tokens from **Coupl: Set ComfyUI Bearer Token** are used for both HTTP requests and WebSocket upgrades. Proxy base paths are supported; redirects are rejected. For a ComfyUI server reached through an SSH tunnel, point `coupl.serverUrl` at the local tunnel endpoint. Models and input assets must already exist on the server. Automatic input uploads, live image previews, and server-side cancellation are not implemented.
 
 ## Install locally
 

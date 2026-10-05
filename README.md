@@ -2,7 +2,7 @@
 
 Coupl is a project to create a domain-specific language for describing [ComfyUI](https://github.com/comfyanonymous/ComfyUI) workflows. The aim is to make workflow definitions more natural to read and write than raw ComfyUI API JSON or pseudo-Python.
 
-The first compiler and Node.js CLI are implemented. The language is small and experimental; validation covers a documented subset of ComfyUI node metadata.
+The compiler, Node.js CLI, and VS Code extension support compiling and executing workflows against a ComfyUI server. The language is small and experimental; validation covers a documented subset of ComfyUI node metadata.
 
 ## Direction
 
@@ -35,9 +35,41 @@ node dist/cli.js compile examples/blank-image.coupl --server http://localhost:81
 
 The [blank-image example](examples/blank-image.coupl) needs no models: it describes a 64×64 image and a preview. For the full [text-to-image example](examples/text-to-image.coupl), replace `example.safetensors` with a compatible checkpoint installed on your instance.
 
-The CLI fetches `/object_info` once, checks the graph, and writes API JSON. It does not submit a prompt or start execution. Omit `--output` to write JSON to stdout; diagnostics go to stderr and errors return a nonzero exit code. An existing output file is replaced only after compilation succeeds, using a temporary file in the same directory. The source file cannot be used as the output file.
+The `compile` command fetches `/object_info` once, checks the graph, and writes API JSON. It does not submit a prompt or start execution. Omit `--output` to write JSON to stdout; diagnostics go to stderr and errors return a nonzero exit code. An existing output file is replaced only after compilation succeeds, using a temporary file in the same directory. The source file cannot be used as the output file.
 
 Reverse-proxy base paths are supported, such as `https://example.test/comfy`. Set `COUPL_BEARER_TOKEN` in the environment if the server requires bearer authentication; `.env` files are not automatically loaded. Requests time out after 15 seconds and do not follow redirects. Use the instance's direct base URL.
+
+## Execute a workflow
+
+```sh
+node dist/cli.js run examples/blank-image.coupl --server http://localhost:8188 --output-dir ./run-results
+```
+
+`run` fetches the current server catalog, compiles the source, submits the API graph once, and waits for completion. It prints result JSON (prompt ID, node outputs, and file references) to stdout and progress to stderr. `--output-dir` creates a **new** directory containing `result.json` and downloaded files with numbered, sanitized names. Existing directories are rejected before submission. Omit it to retrieve metadata without downloading files. Local image paths are not uploaded automatically; input files and models must already exist on the server.
+
+Use `--timeout <seconds>` to change the default one-hour monitoring deadline, including queue time. Ctrl-C stops monitoring; the queued/running workflow may continue on ComfyUI. The CLI never uses the server-wide interrupt endpoint. If a submission response is lost, acceptance is unknown: inspect ComfyUI's queue/history before retrying. Submissions are never retried automatically.
+
+HTTP and WebSocket connections preserve reverse-proxy base paths and use `COUPL_BEARER_TOKEN` when provided. Redirects are rejected. WebSocket events supply node/step progress; history polling retrieves the final outputs even when progress is unavailable or disconnects. Transient history failures are retried up to three attempts. This is execution monitoring, not automatic reconnection to the progress socket. Runtime errors include source node locations. A server can accept a subset of output branches; any returned node validation warnings are reported.
+
+In VS Code, configure `coupl.serverUrl` and choose **Coupl: Run Workflow** or the editor's play button. See the [extension guide](packages/vscode/README.md#run-workflows) for results and monitoring controls.
+
+The shared client can also be used directly:
+
+```ts
+import { compile, fetchNodeCatalog } from "coupl";
+import { createComfyClient } from "coupl/node";
+
+const server = "http://localhost:8188";
+const compiled = compile(sourceText, await fetchNodeCatalog(server));
+if (!compiled.ok) throw new Error("Fix the compilation diagnostics first.");
+const client = createComfyClient(server);
+const result = await client.run(compiled.graph, { onEvent: event => console.error(event) });
+// result.promptId, result.outputs, result.files
+// await client.download(result.files[0]) -> Uint8Array
+// await client.wait(knownPromptId) resumes history monitoring without resubmission.
+```
+
+The `ComfyClient` export from `coupl` uses HTTP polling by default and accepts an optional `progressTransport`; it has no Node dependencies. `createComfyClient` from `coupl/node` supplies the Node WebSocket transport. Client options accept headers, request timeout, and an abort signal; run options accept monitoring timeout, polling interval, abort signal, and progress callback. Aborting does not cancel remote work.
 
 ## Supported language
 
@@ -100,7 +132,7 @@ The [Krea-2 Turbo example](examples/krea-2-turbo.coupl) preserves the supplied 2
 
 ## Architecture and validation
 
-The compiler receives source text and node definitions and returns API JSON or diagnostics. It has no filesystem, network, or Node.js dependencies. The CLI handles arguments and files; a separate HTTP client uses standard Fetch APIs. The package has no runtime dependencies.
+The compiler receives source text and node definitions and returns API JSON or diagnostics. It has no filesystem, network, or Node.js dependencies. The CLI handles arguments and files; a separate HTTP client uses standard Fetch APIs. The compiler and HTTP client use browser APIs; the Node execution transport uses `ws` for authenticated WebSocket progress.
 
 The pipeline parses the DSL, resolves graph references, binds arguments, validates against the instance's node definitions, and emits API JSON. Node names become API node IDs. Diagnostics include source spans and, where relevant, the referenced declaration.
 
@@ -140,7 +172,7 @@ This repository also contains the `@coupl/language-server` and `coupl-vscode` wo
 
 Run `npm run package:extension` to build `dist/coupl-vscode.vsix`, then install it with VS Code's **Extensions: Install from VSIX...** command. Configure `coupl.serverUrl` for a live ComfyUI instance or `coupl.catalogPath` for a saved `/object_info` JSON catalog. See the [extension guide](packages/vscode/README.md) for authentication, offline behavior, F5 debugging, and standalone LSP setup.
 
-`npm run test:extension` runs an editor smoke test in an isolated VS Code window. The ordinary test suite includes language-feature and bundled-server protocol tests. The core remains browser-compatible; editor and protocol dependencies live in the workspace packages.
+`npm run test:extension` runs an editor smoke test in an isolated VS Code window. The ordinary test suite includes language-feature, bundled-server protocol, and HTTP/WebSocket execution tests. Execution tests cover authentication, early events, connection failures, runtime errors, downloads, deadlines, and avoiding duplicate submissions. The core remains browser-compatible; editor and protocol dependencies live in the workspace packages.
 
 ### Compiler and workspace checks
 
@@ -157,7 +189,7 @@ The [first live validation](doc/live-validation.md) passed against ComfyUI 0.37.
 
 See the [language specification](doc/language-specification.md) for the grammar, binding rules, and worked example. The [example API JSON](examples/text-to-image.api.json) is the compiler's expected output fixture.
 
-Future scope includes richer schema support, language conveniences such as constants and reusable subgraphs, and a separate decision about workflow submission/execution.
+Future scope includes richer schema support, language conveniences such as constants and reusable subgraphs, input asset uploads, live image previews, and server-side cancellation.
 
 ## License
 

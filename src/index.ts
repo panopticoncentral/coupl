@@ -9,3 +9,6 @@ export { readNodeSchema, selectInputs } from "./catalog.js";
 export type { InputSchema, NodeSchema } from "./catalog.js";
 export { bindInputs } from "./binding.js";
 export type { Declaration, NodeDeclaration, Reference, Argument, Value, Primitive } from "./types.js";
+
+export { ComfyClient, ExecutionError } from "./execution.js";
+export type { ExecutionClientOptions, RunOptions, RunResult, RunEvent, OutputFile, NodeIssue, ProgressTransport } from "./execution.js";
